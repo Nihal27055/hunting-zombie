@@ -348,6 +348,7 @@
             </div>
             
             <button id="startButton">TAP HERE OR PRESS ENTER TO START</button>
+            <button id="restartFromTutorialButton">RESTART</button>
         </div>
     </div>
     
@@ -2544,6 +2545,9 @@
                 restartTopBtn.onclick = restart;
             }
         });
+        
+        // Add event listener for the new RESTART button on the tutorial/pause screen
+        document.getElementById('restartFromTutorialButton').addEventListener('click', restart);
     </script>
 </body>
 </html> 
