@@ -1,5 +1,8 @@
 # Zombie Forest Shooter
 
+**Live Game Link:**
+[https://nihal27055.github.io/hunting-zombie/](https://nihal27055.github.io/hunting-zombie/)
+
 [**▶️ Play the Game on GitHub Pages**](https://nihal27055.github.io/hunting-zombie/)
 
 Survive the night in a zombie-infested forest! This is a 3D first-person shooter game built with Three.js, where you must eliminate waves of zombies and defeat the final boss to win.
