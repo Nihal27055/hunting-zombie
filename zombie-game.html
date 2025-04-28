@@ -1,0 +1,2549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zombie Forest Shooter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r132/three.min.js"></script>
+    <!-- Add advanced graphics libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+        }
+        
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            font-size: 20px;
+            z-index: 100;
+        }
+        
+        #healthBar {
+            width: 200px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            margin-top: 5px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        #healthFill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(to right, #ff0000, #ff5500);
+            transition: width 0.3s;
+        }
+        
+        #ammoDisplay {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .bullet {
+            width: 10px;
+            height: 20px;
+            background: #ffcc00;
+            margin-right: 3px;
+            border-radius: 2px;
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: #00ff00;
+            box-shadow: 0 0 8px #00ff00, 0 0 12px rgba(0, 255, 0, 0.5);
+            outline: 1px solid #000;
+        }
+        
+        #crosshair::before {
+            width: 2px;
+            height: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        #crosshair::after {
+            width: 20px;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        #tutorialScreen, #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        
+        #gameOverScreen {
+            display: none;
+        }
+        
+        .screen-content {
+            background: rgba(30, 30, 30, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            max-width: 600px;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            border: 1px solid #ff3300;
+        }
+        
+        h1 {
+            font-size: 42px;
+            margin-bottom: 20px;
+            color: #ff3300;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+        
+        .controls {
+            text-align: left;
+            margin: 20px 0;
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .control-key {
+            background: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: inline-block;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        button {
+            background: linear-gradient(to bottom, #ff3300, #cc2200);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 22px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            text-transform: uppercase;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:hover {
+            background: linear-gradient(to bottom, #ff4400, #dd3300);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        #messageFlash {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 28px;
+            text-shadow: 0 0 10px black;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 150;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        #pauseButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: 2px solid #ff3300;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            z-index: 100;
+        }
+        
+        #pauseButton:hover {
+            background: rgba(50, 50, 50, 0.7);
+        }
+        
+        #pauseMenu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        
+        .pause-content {
+            background: rgba(30, 30, 30, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            max-width: 600px;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            border: 1px solid #ff3300;
+        }
+        
+        .menu-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        #levelIndicator {
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+            font-size: 20px;
+            font-weight: bold;
+            z-index: 100;
+        }
+        
+        #levelUpNotification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff0000;
+            font-size: 36px;
+            text-shadow: 0 0 20px #ff0000;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 150;
+            text-align: center;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 20px 40px;
+            border-radius: 10px;
+            border: 2px solid #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui">
+        <div id="score">Score: 0</div>
+        <div id="healthContainer">
+            <div>Health:</div>
+            <div id="healthBar">
+                <div id="healthFill"></div>
+            </div>
+        </div>
+        <div id="levelIndicator">LEVEL 1</div>
+    </div>
+    
+    <div id="pauseButton">PAUSE</div>
+    <div id="restartTopButton">RESTART</div>
+    
+    <div id="crosshair"></div>
+    
+    <div id="messageFlash"></div>
+    
+    <div id="levelUpNotification">LEVEL UP!</div>
+    
+    <div id="pauseMenu">
+        <div class="pause-content">
+            <h1>GAME PAUSED</h1>
+            
+            <div class="controls">
+                <div class="control-key">↑ ↓ ← →</div>
+                <div>Move around</div>
+                
+                <div class="control-key">MOUSE</div>
+                <div>Look around</div>
+                
+                <div class="control-key">LEFT CLICK / SPACE</div>
+                <div>Shoot</div>
+                
+                <div class="control-key">SHIFT</div>
+                <div>Run (hold to move faster)</div>
+                
+                <div class="control-key">ESC</div>
+                <div>Pause game</div>
+            </div>
+            
+            <div class="menu-buttons">
+                <button id="resumeButton">RESUME</button>
+                <button id="restartFromPauseButton">RESTART</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tutorialScreen">
+        <div class="screen-content">
+            <h1>ZOMBIE FOREST SURVIVAL</h1>
+            <p>Survive the night in a zombie-infested forest. Eliminate the zombies before they get you!</p>
+            
+            <div class="controls">
+                <div class="control-key">↑ ↓ ← →</div>
+                <div>Move around</div>
+                
+                <div class="control-key">MOUSE</div>
+                <div>Look around</div>
+                
+                <div class="control-key">LEFT CLICK / SPACE</div>
+                <div>Shoot</div>
+                
+                <div class="control-key">SHIFT</div>
+                <div>Run (hold to move faster)</div>
+                
+                <div class="control-key">ESC</div>
+                <div>Pause game</div>
+            </div>
+            
+            <button id="startButton">TAP HERE OR PRESS ENTER TO START</button>
+        </div>
+    </div>
+    
+    <div id="gameOverScreen">
+        <div class="screen-content">
+            <h1>GAME OVER</h1>
+            <p>The zombies got you! You survived for <span id="survivalTime">0</span> seconds.</p>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button id="restartButton">TRY AGAIN</button>
+        </div>
+    </div>
+
+    <script>
+        // Game state variables
+        let scene, camera, renderer, listener, ambientLight, moonLight, flashLight;
+        let player, playerCollider, playerMesh, playerWeapon;
+        let bullets = [], zombies = [], trees = [], rocks = [];
+        let health = 100, score = 0;
+        let startTime, gameTime;
+        let currentLevel = 1;
+        let bossActive = false;
+        let gameWon = false;
+        
+        // Level system
+        const LEVEL_THRESHOLDS = [0, 50, 150, 300, 500, 750, 1000, 1500, 2000, 3000]; // Score needed for each level
+        const MAX_LEVEL = LEVEL_THRESHOLDS.length - 1; // Maximum level
+        const BOSS_LEVEL = MAX_LEVEL; // Level at which the boss appears
+        
+        // Performance optimization settings
+        const MAX_ZOMBIES = 10; // Reduced from 15 to improve performance
+        const MAX_BULLETS = 8; // Reduced from 10
+        const UPDATE_FREQUENCY = 50; // Increased from 30 to reduce physics update frequency
+        let lastUpdateTime = 0;
+        
+        // Post-processing for high-quality graphics
+        let composer, bloomPass, renderPass;
+        
+        // Movement variables
+        let moveForward = false, moveBackward = false;
+        let moveLeft = false, moveRight = false;
+        let isShooting = false, isRunning = false;
+        let playerSpeed = 0.15;
+        let runningSpeed = 0.3; // Running is twice as fast as walking
+        
+        // Camera rotation variables
+        let rotateLeft = false, rotateRight = false;
+        let rotateUp = false, rotateDown = false;
+        let rotationSpeed = 0.05;
+        
+        // Game logic variables
+        let lastShot = 0, lastZombieSpawn = 0;
+        let isGameRunning = false;
+        let lastTime = 0;
+        let clock = new THREE.Clock();
+        
+        // Sound effects
+        let gunSound, zombieGroan, playerHurt, reloadSound;
+        
+        // Bullet properties
+        const BULLET_SPEED = 1.5;
+        const FIRE_RATE = 100;  // milliseconds between shots - reduced from 150 for faster firing
+        let canShoot = true; // Flag to track if we can shoot
+        
+        // UI elements
+        const healthFill = document.getElementById('healthFill');
+        const scoreDisplay = document.getElementById('score');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const survivalTimeDisplay = document.getElementById('survivalTime');
+        const messageFlash = document.getElementById('messageFlash');
+        const levelIndicator = document.getElementById('levelIndicator');
+        const levelUpNotification = document.getElementById('levelUpNotification');
+        
+        // Initialize the game
+        function init() {
+            // Three.js setup
+            setupScene();
+            
+            // Create environment
+            createEnvironment();
+            
+            // Set up the player
+            setupPlayer();
+            
+            // Set up controls
+            setupControls();
+            
+            // Add button event listeners
+            document.getElementById('startButton').addEventListener('click', startGame);
+            document.getElementById('restartButton').addEventListener('click', restart);
+            document.getElementById('pauseButton').addEventListener('click', pauseGame);
+            document.getElementById('resumeButton').addEventListener('click', resumeGame);
+            document.getElementById('restartFromPauseButton').addEventListener('click', restart);
+            
+            // Load sounds
+            setupSounds();
+            
+            // Initial render
+            renderer.render(scene, camera);
+        }
+        
+        function setupSounds() {
+            // Create audio listener and attach to camera
+            listener = new THREE.AudioListener();
+            camera.add(listener);
+            
+            // Gun sound
+            gunSound = new THREE.Audio(listener);
+            const gunSoundLoader = new THREE.AudioLoader();
+            gunSoundLoader.load('https://assets.codepen.io/21542/pistol-shot.mp3', function(buffer) {
+                gunSound.setBuffer(buffer);
+                gunSound.setVolume(0.5);
+            });
+            
+            // Zombie groan
+            zombieGroan = new THREE.Audio(listener);
+            const zombieSoundLoader = new THREE.AudioLoader();
+            zombieSoundLoader.load('https://assets.codepen.io/21542/zombie-groan.mp3', function(buffer) {
+                zombieGroan.setBuffer(buffer);
+                zombieGroan.setVolume(0.4);
+            });
+            
+            // Player hurt sound
+            playerHurt = new THREE.Audio(listener);
+            const hurtSoundLoader = new THREE.AudioLoader();
+            hurtSoundLoader.load('https://assets.codepen.io/21542/player-hurt.mp3', function(buffer) {
+                playerHurt.setBuffer(buffer);
+                playerHurt.setVolume(0.5);
+            });
+            
+            // Reload sound
+            reloadSound = new THREE.Audio(listener);
+            const reloadSoundLoader = new THREE.AudioLoader();
+            reloadSoundLoader.load('https://assets.codepen.io/21542/reload.mp3', function(buffer) {
+                reloadSound.setBuffer(buffer);
+                reloadSound.setVolume(0.5);
+            });
+        }
+        
+        function setupScene() {
+            // Create scene with dark blue-ish background for night sky
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x001122);
+            scene.fog = new THREE.FogExp2(0x001122, 0.04); // Reduced fog density
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50); // Reduced far plane from 100 to 50
+            camera.position.y = 1.6; // Eye height
+            
+            // Create renderer with antialiasing
+            renderer = new THREE.WebGLRenderer({
+                canvas: document.getElementById('gameCanvas'),
+                antialias: window.innerWidth < 1600, // Only use antialiasing for smaller screens
+                powerPreference: "high-performance"
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1)); // Limit pixel ratio more aggressively
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            
+            // Performance optimization - disable unnecessary features
+            renderer.gammaFactor = 2.2;
+            renderer.physicallyCorrectLights = false;
+            
+            // Set up post-processing for high-quality graphics - simplified for performance
+            renderPass = new THREE.RenderPass(scene, camera);
+            
+            bloomPass = new THREE.UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth / 4, window.innerHeight / 4), // Reduced resolution even more
+                0.3,    // bloom strength - reduced
+                0.3,    // bloom radius - reduced
+                0.85    // bloom threshold
+            );
+            
+            composer = new THREE.EffectComposer(renderer);
+            composer.addPass(renderPass);
+            composer.addPass(bloomPass);
+            
+            // Add ambient lighting (night time - blue tint)
+            ambientLight = new THREE.AmbientLight(0x334455, 0.3);
+            scene.add(ambientLight);
+            
+            // Add directional light for moon
+            moonLight = new THREE.DirectionalLight(0x8888ff, 0.5);
+            moonLight.position.set(5, 10, 5);
+            moonLight.castShadow = true;
+            moonLight.shadow.mapSize.width = 512; // Reduced shadow resolution
+            moonLight.shadow.mapSize.height = 512; // Reduced shadow resolution
+            moonLight.shadow.camera.near = 0.5;
+            moonLight.shadow.camera.far = 50;
+            moonLight.shadow.bias = -0.0001;
+            scene.add(moonLight);
+        }
+        
+        function createEnvironment() {
+            // Create ground texture (dark grass)
+            const groundTexture = new THREE.TextureLoader().load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
+            const groundNormalMap = new THREE.TextureLoader().load('https://threejs.org/examples/textures/terrain/grasslight-big-nm.jpg');
+            groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
+            groundNormalMap.wrapS = groundNormalMap.wrapT = THREE.RepeatWrapping;
+            groundTexture.repeat.set(25, 25);
+            groundNormalMap.repeat.set(25, 25);
+            groundTexture.anisotropy = 4; // Reduced for performance
+            
+            // Create ground material with dark color for night
+            const groundMaterial = new THREE.MeshStandardMaterial({ 
+                map: groundTexture,
+                normalMap: groundNormalMap,
+                color: 0x224422,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            
+            // Create ground plane
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(200, 200, 8, 8), // Reduced segments
+                groundMaterial
+            );
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Create trees - reduced count
+            const treeCount = 30; // Reduced further from 50
+            for (let i = 0; i < treeCount; i++) {
+                createTree(
+                    (Math.random() - 0.5) * 180,
+                    (Math.random() - 0.5) * 180
+                );
+            }
+            
+            // Create rocks - reduced count
+            const rockCount = 15; // Reduced from 25
+            for (let i = 0; i < rockCount; i++) {
+                createRock(
+                    (Math.random() - 0.5) * 180,
+                    (Math.random() - 0.5) * 180
+                );
+            }
+            
+            // Add atmospheric fog particles for depth - reduced
+            createFogParticles();
+        }
+        
+        function createFogParticles() {
+            const particleCount = 300; // Reduced from 500
+            const particles = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                positions[i3] = (Math.random() - 0.5) * 150;
+                positions[i3 + 1] = Math.random() * 10;
+                positions[i3 + 2] = (Math.random() - 0.5) * 150;
+            }
+            
+            particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                color: 0x335577,
+                size: 0.3,
+                transparent: true,
+                opacity: 0.3,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particleSystem = new THREE.Points(particles, particleMaterial);
+            scene.add(particleSystem);
+        }
+        
+        function createTree(x, z) {
+            // Only create trees that are within a reasonable distance from the center
+            if (Math.sqrt(x*x + z*z) > 100) return;
+            
+            // Create tree group
+            const tree = new THREE.Group();
+            
+            // Random tree height
+            const treeHeight = 4 + Math.random() * 4;
+            
+            // Tree trunk - dark brown
+            const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.4, treeHeight, 6); // Reduced segments
+            const trunkMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x3d2817,
+                roughness: 0.9 
+            });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.y = treeHeight / 2;
+            trunk.castShadow = true;
+            trunk.receiveShadow = true;
+            tree.add(trunk);
+            
+            // Tree leaves - dark green cone shape
+            const leavesGeometry = new THREE.ConeGeometry(treeHeight / 3, treeHeight, 6); // Reduced segments
+            const leavesMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x006600,
+                roughness: 0.8 
+            });
+            const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+            leaves.position.y = treeHeight + (treeHeight / 6);
+            leaves.castShadow = true;
+            tree.add(leaves);
+            
+            // Position the tree
+            tree.position.set(x, 0, z);
+            
+            // Add tree to scene and array
+            scene.add(tree);
+            trees.push({
+                mesh: tree,
+                radius: 0.8  // Collision radius
+            });
+        }
+        
+        function createRock(x, z) {
+            // Random rock size
+            const rockSize = 0.5 + Math.random() * 1.5;
+            
+            // Create rock geometry with slightly random shape
+            const rockGeometry = new THREE.DodecahedronGeometry(rockSize, 1);
+            
+            // Apply random deformation to vertices
+            const vertices = rockGeometry.attributes.position;
+            for (let i = 0; i < vertices.count; i++) {
+                vertices.setXYZ(
+                    i,
+                    vertices.getX(i) * (0.8 + Math.random() * 0.4),
+                    vertices.getY(i) * (0.8 + Math.random() * 0.4),
+                    vertices.getZ(i) * (0.8 + Math.random() * 0.4)
+                );
+            }
+            
+            // Create rock material - gray with slight variation
+            const grayValue = 0.2 + Math.random() * 0.3;
+            const rockMaterial = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(grayValue, grayValue, grayValue),
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            
+            // Create mesh and position
+            const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+            rock.position.set(x, rockSize / 2, z);
+            rock.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            rock.castShadow = true;
+            rock.receiveShadow = true;
+            
+            // Add to scene and array
+            scene.add(rock);
+            rocks.push({
+                mesh: rock,
+                radius: rockSize * 1.2  // Collision radius
+            });
+        }
+        
+        function setupPlayer() {
+            // Create player object
+            player = new THREE.Object3D();
+            player.position.set(0, 1.6, 0);
+            
+            // Add camera to player
+            player.add(camera);
+            
+            // Add flashlight (spotlight) attached to camera
+            flashLight = new THREE.SpotLight(0xffffff, 1);
+            flashLight.position.set(0, 0, 0);
+            flashLight.angle = Math.PI / 6;
+            flashLight.penumbra = 0.2;
+            flashLight.decay = 2;
+            flashLight.distance = 30;
+            flashLight.castShadow = true;
+            flashLight.shadow.mapSize.width = 1024;
+            flashLight.shadow.mapSize.height = 1024;
+            flashLight.shadow.camera.near = 0.5;
+            flashLight.shadow.camera.far = 30;
+            camera.add(flashLight);
+            flashLight.target.position.set(0, 0, -1);
+            camera.add(flashLight.target);
+            
+            // Create player collision cylinder (invisible)
+            const playerGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1.8, 8);
+            const playerMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xff0000,
+                wireframe: true,
+                visible: false  // Invisible collision mesh
+            });
+            playerCollider = new THREE.Mesh(playerGeometry, playerMaterial);
+            playerCollider.position.y = 0.9;  // Center of player
+            player.add(playerCollider);
+            
+            // Create player weapon (gun model)
+            createPlayerWeapon();
+            
+            // Add player to scene
+            scene.add(player);
+        }
+        
+        function createPlayerWeapon() {
+            // Create gun group
+            playerWeapon = new THREE.Group();
+            
+            // Gun body
+            const gunBody = new THREE.Mesh(
+                new THREE.BoxGeometry(0.1, 0.1, 0.4),
+                new THREE.MeshStandardMaterial({ color: 0x222222 })
+            );
+            playerWeapon.add(gunBody);
+            
+            // Gun handle
+            const gunHandle = new THREE.Mesh(
+                new THREE.BoxGeometry(0.08, 0.2, 0.1),
+                new THREE.MeshStandardMaterial({ color: 0x332211 })
+            );
+            gunHandle.position.set(0, -0.15, 0.05);
+            playerWeapon.add(gunHandle);
+            
+            // Gun barrel
+            const gunBarrel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.025, 0.025, 0.5, 8),
+                new THREE.MeshStandardMaterial({ color: 0x111111 })
+            );
+            gunBarrel.rotation.x = Math.PI / 2;
+            gunBarrel.position.set(0, 0, 0.4);
+            playerWeapon.add(gunBarrel);
+            
+            // Position the gun in front of the camera
+            playerWeapon.position.set(0.25, -0.2, -0.5);
+            camera.add(playerWeapon);
+        }
+        
+        function setupControls() {
+            // Keyboard controls
+            document.addEventListener('keydown', function(e) {
+                if (!isGameRunning) {
+                    // Start game with Enter key
+                    if (e.code === 'Enter' && document.getElementById('tutorialScreen').style.display !== 'none') {
+                        startGame();
+                        return;
+                    }
+                    
+                    // Resume with Escape when paused
+                    if (e.code === 'Escape' && document.getElementById('pauseMenu').style.display === 'flex') {
+                        resumeGame();
+                        return;
+                    }
+                    
+                    return;
+                }
+                
+                switch(e.code) {
+                    case 'ArrowUp': case 'KeyW': moveForward = true; break;
+                    case 'ArrowDown': case 'KeyS': moveBackward = true; break;
+                    case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
+                    case 'ArrowRight': case 'KeyD': moveRight = true; break;
+                    case 'ShiftLeft': case 'ShiftRight': 
+                        isRunning = true;
+                        break;
+                    // Add space bar as alternative shooting method
+                    case 'Space': 
+                        if (canShoot) {
+                            shoot();
+                            canShoot = false;
+                            setTimeout(() => { canShoot = true; }, FIRE_RATE);
+                        }
+                        break;
+                    case 'Escape':
+                        pauseGame();
+                        break;
+                }
+            });
+            
+            document.addEventListener('keyup', function(e) {
+                switch(e.code) {
+                    case 'ArrowUp': case 'KeyW': moveForward = false; break;
+                    case 'ArrowDown': case 'KeyS': moveBackward = false; break;
+                    case 'ArrowLeft': case 'KeyA': moveLeft = false; break;
+                    case 'ArrowRight': case 'KeyD': moveRight = false; break;
+                    case 'ShiftLeft': case 'ShiftRight': 
+                        isRunning = false;
+                        break;
+                }
+            });
+            
+            // Mouse controls for looking around - improved sensitivity and smoothness
+            let mouseSensitivity = 0.0015; // Reduced sensitivity for better control
+            
+            document.addEventListener('mousemove', function(e) {
+                if (document.pointerLockElement === document.getElementById('gameCanvas')) {
+                    // Prevent extreme movements by clamping movement values
+                    const maxMovement = 30;
+                    const movementX = Math.max(-maxMovement, Math.min(maxMovement, e.movementX));
+                    const movementY = Math.max(-maxMovement, Math.min(maxMovement, e.movementY));
+                    
+                    // Vertical look (up/down) with limits
+                    const verticalLook = camera.rotation.x - movementY * mouseSensitivity;
+                    if (verticalLook < Math.PI/2 && verticalLook > -Math.PI/2) {
+                        camera.rotation.x = verticalLook;
+                    }
+                    
+                    // Horizontal look (left/right)
+                    camera.rotation.y -= movementX * mouseSensitivity;
+                }
+            });
+            
+            // Mouse click for shooting - Fixed for reliable shooting
+            document.addEventListener('mousedown', function(e) {
+                if (document.pointerLockElement === document.getElementById('gameCanvas') && e.button === 0) {
+                    if (canShoot) {
+                        shoot();
+                        canShoot = false;
+                        setTimeout(() => { canShoot = true; }, FIRE_RATE);
+                    }
+                }
+            });
+            
+            document.addEventListener('mouseup', function(e) {
+                if (e.button === 0) {
+                    isShooting = false;
+                }
+            });
+            
+            // Handle pointer lock changes
+            document.addEventListener('pointerlockchange', function() {
+                if (!document.pointerLockElement && isGameRunning && health > 0) {
+                    // Show pause menu (tutorial screen reused as pause)
+                    document.getElementById('tutorialScreen').style.display = 'flex';
+                    isGameRunning = false;
+                }
+            });
+            
+            // Window resize
+            window.addEventListener('resize', function() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                composer.setSize(window.innerWidth, window.innerHeight);
+                bloomPass.resolution.set(window.innerWidth, window.innerHeight);
+            });
+        }
+        
+        function startGame() {
+            // Hide tutorial screen
+            document.getElementById('tutorialScreen').style.display = 'none';
+            
+            // Request pointer lock
+            document.getElementById('gameCanvas').requestPointerLock();
+            
+            // Initialize game state
+            if (!startTime) {
+                startTime = Date.now();
+            }
+            
+            // Update UI
+            updateUI();
+            
+            // Start game loop
+            isGameRunning = true;
+            clock.start();
+            
+            if (!window.gameLoopRunning) {
+                window.gameLoopRunning = true;
+                gameLoop();
+            }
+        }
+        
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
+            
+            const deltaTime = clock.getDelta();
+            
+            if (isGameRunning) {
+                updatePlayer(deltaTime);
+                updateBullets(deltaTime);
+                updateZombies(deltaTime);
+                checkCollisions();
+                
+                // Update game time
+                gameTime = Math.floor((Date.now() - startTime) / 1000);
+            }
+            
+            // Use the post-processing composer instead of simple renderer
+            composer.render();
+        }
+        
+        function updatePlayer(deltaTime) {
+            // Only update if pointer is locked
+            if (document.pointerLockElement !== document.getElementById('gameCanvas')) return;
+            
+            // Calculate movement directions based on camera's horizontal orientation only
+            // This creates a "flat" movement plane regardless of where the player is looking
+            const cameraDirection = new THREE.Vector3();
+            camera.getWorldDirection(cameraDirection);
+            
+            // Project the camera's forward direction onto the horizontal plane
+            const forward = new THREE.Vector3(cameraDirection.x, 0, cameraDirection.z).normalize();
+            
+            // Calculate the right vector perpendicular to forward on the horizontal plane
+            const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), forward).normalize();
+            
+            // Store previous position for collision detection
+            const prevPosition = player.position.clone();
+            
+            // Determine current speed (running or walking)
+            const currentSpeed = isRunning ? runningSpeed : playerSpeed;
+            
+            // Apply movement based on keys - CORRECTED direction
+            if (moveForward) player.position.addScaledVector(forward, currentSpeed);
+            if (moveBackward) player.position.addScaledVector(forward, -currentSpeed);
+            if (moveLeft) player.position.addScaledVector(right, -currentSpeed);
+            if (moveRight) player.position.addScaledVector(right, currentSpeed);
+            
+            // Check for collisions with environment
+            if (checkEnvironmentCollisions()) {
+                // If collision detected, revert to previous position
+                player.position.copy(prevPosition);
+            }
+            
+            // Weapon sway effect
+            const swayAmount = 0.01;
+            
+            if (moveForward || moveBackward || moveLeft || moveRight) {
+                // Faster sway when running
+                const swaySpeed = isRunning ? 0.015 : 0.01;
+                playerWeapon.position.y = -0.2 + Math.sin(performance.now() * swaySpeed) * swayAmount;
+                playerWeapon.position.x = 0.25 + Math.cos(performance.now() * swaySpeed) * swayAmount;
+            } else {
+                // Smoothly return to original position
+                playerWeapon.position.y += (-0.2 - playerWeapon.position.y) * 0.1;
+                playerWeapon.position.x += (0.25 - playerWeapon.position.x) * 0.1;
+            }
+        }
+        
+        function checkEnvironmentCollisions() {
+            // Get player position
+            const playerPos = new THREE.Vector3(
+                player.position.x,
+                player.position.y,
+                player.position.z
+            );
+            
+            // Check collisions with trees
+            for (const tree of trees) {
+                const treePos = new THREE.Vector3(
+                    tree.mesh.position.x,
+                    player.position.y,
+                    tree.mesh.position.z
+                );
+                
+                const distance = playerPos.distanceTo(treePos);
+                if (distance < 1 + tree.radius) {
+                    return true; // Collision detected
+                }
+            }
+            
+            // Check collisions with rocks
+            for (const rock of rocks) {
+                const rockPos = new THREE.Vector3(
+                    rock.mesh.position.x,
+                    player.position.y,
+                    rock.mesh.position.z
+                );
+                
+                const distance = playerPos.distanceTo(rockPos);
+                if (distance < 1 + rock.radius) {
+                    return true; // Collision detected
+                }
+            }
+            
+            // Out of bounds check (keep player within the forest)
+            if (Math.abs(player.position.x) > 90 || Math.abs(player.position.z) > 90) {
+                return true;
+            }
+            
+            return false; // No collision
+        }
+        
+        function shoot() {
+            // Play gun sound
+            if (gunSound) {
+                if (gunSound.isPlaying) {
+                    gunSound.stop();
+                }
+                gunSound.play();
+            }
+            
+            // Check if we've exceeded the maximum number of bullets
+            if (bullets.length >= MAX_BULLETS) {
+                // Remove the oldest bullet
+                scene.remove(bullets[0].mesh);
+                bullets.splice(0, 1);
+            }
+            
+            // Create bullet
+            const bulletGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+            const bulletMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffff00
+            });
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+            
+            // Get gun position in world space
+            const gunPosition = new THREE.Vector3();
+            playerWeapon.getWorldPosition(gunPosition);
+            
+            // Get camera direction - the direction the player is facing
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            
+            // Set bullet position at the gun position
+            bullet.position.copy(gunPosition);
+            
+            // Move bullet forward slightly
+            bullet.position.x += direction.x * 0.2;
+            bullet.position.y += direction.y * 0.2;
+            bullet.position.z += direction.z * 0.2;
+            
+            // Add glow effect to bullet
+            const bulletGlow = new THREE.PointLight(0xffff00, 1, 5);
+            bullet.add(bulletGlow);
+            
+            // Add bullet to scene
+            scene.add(bullet);
+            
+            // Add to bullets array with the EXACT same direction as camera
+            bullets.push({
+                mesh: bullet,
+                direction: direction.clone(), // Important: clone to prevent reference issues
+                speed: BULLET_SPEED,
+                distance: 0
+            });
+            
+            // Apply recoil effect
+            playerWeapon.position.z += 0.05;
+            setTimeout(() => {
+                playerWeapon.position.z -= 0.05;
+            }, 50);
+        }
+        
+        function updateBullets() {
+            // Throttle physics updates to reduce CPU usage
+            const now = performance.now();
+            if (now - lastUpdateTime < UPDATE_FREQUENCY) return;
+            
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                
+                // Move bullet in its exact initial direction
+                bullet.mesh.position.x += bullet.direction.x * bullet.speed;
+                bullet.mesh.position.y += bullet.direction.y * bullet.speed;
+                bullet.mesh.position.z += bullet.direction.z * bullet.speed;
+                
+                bullet.distance += bullet.speed;
+                
+                // Remove if too far
+                if (bullet.distance > 50) { // Reduced maximum distance
+                    scene.remove(bullet.mesh);
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+        
+        function updateZombies(deltaTime) {
+            // Only spawn new zombies if below the maximum limit
+            const now = performance.now();
+            
+            // Check if it's time to spawn the boss
+            if (currentLevel >= BOSS_LEVEL && !bossActive && zombies.length < MAX_ZOMBIES) {
+                spawnBossZombie();
+                bossActive = true;
+                lastZombieSpawn = now;
+                return; // Don't spawn regular zombies when boss is active
+            }
+            
+            // Only spawn regular zombies if boss is not active
+            if (!bossActive) {
+                // Spawn more frequently at higher levels
+                const spawnInterval = Math.max(2000 - (currentLevel * 150), 1000); // Increased minimum delay
+                
+                if (now - lastZombieSpawn > spawnInterval && zombies.length < MAX_ZOMBIES) {
+                    spawnZombie();
+                    lastZombieSpawn = now;
+                }
+            }
+            
+            // Throttle physics updates to reduce CPU usage
+            if (now - lastUpdateTime < UPDATE_FREQUENCY) return;
+            lastUpdateTime = now;
+            
+            // Check for and resolve zombie stacking issues
+            checkZombieStacking();
+            
+            // Update existing zombies - optimized
+            for (let i = zombies.length - 1; i >= 0; i--) {
+                const zombie = zombies[i];
+                
+                // Only update zombies that are within visible range (40 units - reduced from 50)
+                const distanceToPlayer = zombie.mesh.position.distanceTo(player.position);
+                
+                // Process special abilities
+                let currentSpeed = zombie.speed;
+                
+                // Check for zombies stuck too far from the play area
+                if (Math.abs(zombie.mesh.position.x) > 95 || Math.abs(zombie.mesh.position.z) > 95) {
+                    // Teleport zombie back to a reasonable position
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 50 + Math.random() * 20;
+                    zombie.mesh.position.x = player.position.x + Math.cos(angle) * distance;
+                    zombie.mesh.position.z = player.position.z + Math.sin(angle) * distance;
+                    continue; // Skip this update cycle
+                }
+                
+                // Speed burst ability - optimized
+                if (zombie.specialAbilities && zombie.specialAbilities.speedBurst) {
+                    const speedBurst = zombie.specialAbilities.speedBurst;
+                    
+                    // Check if speed burst is active
+                    if (speedBurst.active) {
+                        if (now - speedBurst.lastBurst > speedBurst.duration) {
+                            // End speed burst
+                            speedBurst.active = false;
+                        } else {
+                            // Apply speed burst
+                            currentSpeed *= speedBurst.multiplier;
+                            
+                            // Only add visual effect occasionally to reduce particles
+                            if (Math.random() < 0.3) {
+                                const trailParticle = new THREE.Mesh(
+                                    new THREE.SphereGeometry(0.1, 4, 4),
+                                    new THREE.MeshBasicMaterial({
+                                        color: 0xff0000,
+                                        transparent: true,
+                                        opacity: 0.7
+                                    })
+                                );
+                                trailParticle.position.copy(zombie.mesh.position);
+                                trailParticle.position.y += 0.5;
+                                scene.add(trailParticle);
+                                
+                                // Fade out and remove
+                                setTimeout(() => {
+                                    scene.remove(trailParticle);
+                                }, 200); // Reduced from 300
+                            }
+                        }
+                    } else if (Math.random() < speedBurst.chance && 
+                               now - speedBurst.lastBurst > speedBurst.cooldown) {
+                        // Start a new speed burst
+                        speedBurst.active = true;
+                        speedBurst.lastBurst = now;
+                        
+                        // Only show message for boss to reduce UI updates
+                        if (zombie.isBoss) {
+                            showMessage("Boss speed burst!", 800);
+                        }
+                    }
+                }
+                
+                // Calculate direction to player
+                const direction = new THREE.Vector3();
+                direction.subVectors(player.position, zombie.mesh.position);
+                direction.y = 0; // Keep zombies on the ground
+                direction.normalize();
+                
+                // Store current position for stacking detection
+                if (!zombie.lastUpdatePosition) {
+                    zombie.lastUpdatePosition = new THREE.Vector3();
+                }
+                zombie.lastUpdatePosition.copy(zombie.mesh.position);
+                
+                // Zombie AI - avoid obstacles sometimes (less frequently to improve performance)
+                if (Math.random() < 0.01) { // Reduced from 0.02
+                    const randomAngle = Math.random() * Math.PI / 4 - Math.PI / 8;
+                    const rotationMatrix = new THREE.Matrix4().makeRotationY(randomAngle);
+                    direction.applyMatrix4(rotationMatrix);
+                }
+                
+                // Move zombie toward player
+                zombie.mesh.position.addScaledVector(direction, currentSpeed);
+                
+                // Make zombie face player (only if close enough to be visible)
+                if (distanceToPlayer < 30) {
+                    zombie.mesh.lookAt(player.position);
+                }
+                
+                // Simplify animation - only animate zombies close to player
+                if (distanceToPlayer < 15) {
+                    // Animate zombie (bobbing up and down slightly)
+                    const bobAmount = Math.sin(now * 0.01 + i) * 0.05;
+                    zombie.mesh.position.y = bobAmount + (0.9 * zombie.scale / 2);
+                    
+                    // Animate arms only for close zombies and if they have the right structure
+                    if (distanceToPlayer < 10 && zombie.mesh.children.length >= 3) {
+                        const leftArm = zombie.mesh.children[1];
+                        const rightArm = zombie.mesh.children[2];
+                        
+                        leftArm.rotation.x = Math.sin(now * 0.01 + i) * 0.5;
+                        rightArm.rotation.x = Math.sin(now * 0.01 + i + Math.PI) * 0.5;
+                    }
+                } else {
+                    // For distant zombies, just keep a stable height
+                    zombie.mesh.position.y = (0.9 * zombie.scale / 2);
+                }
+            }
+        }
+        
+        function checkCollisions() {
+            // Check bullet-zombie collisions
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                
+                for (let j = zombies.length - 1; j >= 0; j--) {
+                    const zombie = zombies[j];
+                    const bulletPos = bullet.mesh.position;
+                    const zombiePos = zombie.mesh.position.clone();
+                    zombiePos.y += 0.9 * zombie.scale; // Adjust to center of zombie
+                    
+                    // Different hit radius for boss
+                    const hitRadius = zombie.isBoss ? zombie.scale * 0.6 : zombie.scale * 0.7;
+                    
+                    // Improved collision detection with larger hit detection radius
+                    const distance = bulletPos.distanceTo(zombiePos);
+                    
+                    if (distance < hitRadius) {
+                        // Remove bullet
+                        scene.remove(bullet.mesh);
+                        bullets.splice(i, 1);
+                        
+                        // Calculate damage, considering tough skin ability
+                        let baseDamage = 50;
+                        
+                        // Boss takes less damage from bullets
+                        if (zombie.isBoss) {
+                            baseDamage = 25; // Base damage against boss is lower
+                        }
+                        
+                        // Check for tough skin special ability
+                        if (zombie.specialAbilities && zombie.specialAbilities.toughSkin && 
+                            zombie.specialAbilities.toughSkin.enabled &&
+                            Math.random() < zombie.specialAbilities.toughSkin.chance) {
+                            
+                            // Reduce damage
+                            baseDamage *= zombie.specialAbilities.toughSkin.damageReduction;
+                            
+                            // Visual effect for damage reduction
+                            const shield = new THREE.Mesh(
+                                new THREE.SphereGeometry(zombie.scale, 10, 10),
+                                new THREE.MeshBasicMaterial({
+                                    color: 0x0088ff,
+                                    transparent: true,
+                                    opacity: 0.3
+                                })
+                            );
+                            shield.position.copy(zombie.mesh.position);
+                            shield.position.y += zombie.scale;
+                            scene.add(shield);
+                            
+                            // Fade out and remove
+                            setTimeout(() => {
+                                scene.remove(shield);
+                            }, 300);
+                        }
+                        
+                        // Apply damage
+                        zombie.health -= baseDamage;
+                        
+                        // Show boss health if it's the boss
+                        if (zombie.isBoss) {
+                            const healthPercent = Math.max(0, Math.floor((zombie.health / 1000) * 100));
+                            showMessage(`Boss Health: ${healthPercent}%`, 1000);
+                        }
+                        
+                        // Visual feedback - zombie flashes red
+                        zombie.mesh.children.forEach(part => {
+                            if (part.material) {
+                                part.material.color.set(0xff0000);
+                                setTimeout(() => {
+                                    if (part.material) {
+                                        part.material.color.set(zombie.color);
+                                    }
+                                }, 100);
+                            }
+                        });
+                        
+                        // Kill zombie if health <= 0
+                        if (zombie.health <= 0) {
+                            // Special victory sequence for killing the boss
+                            if (zombie.isBoss) {
+                                victorySequence(zombie.mesh.position);
+                                // No need to remove the boss yet - will happen in victory sequence
+                            } else {
+                                // Check for split on death ability
+                                if (zombie.specialAbilities && zombie.specialAbilities.splitOnDeath &&
+                                    zombie.specialAbilities.splitOnDeath.enabled &&
+                                    Math.random() < zombie.specialAbilities.splitOnDeath.chance) {
+                                    
+                                    // Create 1-2 smaller zombies
+                                    const numSpawns = Math.floor(Math.random() * 2) + 1;
+                                    for (let k = 0; k < numSpawns; k++) {
+                                        createSplitZombie(zombie.mesh.position.x, zombie.mesh.position.z, zombie.scale * 0.6);
+                                    }
+                                    
+                                    // Visual effect and message
+                                    showMessage("Zombie split!", 1000);
+                                }
+                                
+                                // Zombie death effect (fall to the ground)
+                                zombie.mesh.rotation.x = Math.PI / 2;
+                                zombie.mesh.position.y = 0.2;
+                                
+                                setTimeout(() => {
+                                    scene.remove(zombie.mesh);
+                                    zombies.splice(j, 1);
+                                }, 500);
+                                
+                                // Add score
+                                score += 10 * currentLevel; // More points for higher level zombies
+                                updateUI();
+                                
+                                // Check if player has advanced to next level
+                                checkLevelProgress();
+                                
+                                showMessage(`+${10 * currentLevel} Points!`);
+                            }
+                        }
+                        
+                        break; // Bullet hit something, move to next bullet
+                    }
+                }
+            }
+            
+            // Check player-zombie collisions
+            for (let i = zombies.length - 1; i >= 0; i--) {
+                const zombie = zombies[i];
+                const distance = zombie.mesh.position.distanceTo(player.position);
+                
+                // Collision radius based on zombie size
+                const collisionRadius = 1.0 + (zombie.scale * 0.5); 
+                
+                if (distance < collisionRadius) {
+                    // Player takes damage based on zombie level
+                    const damage = 5 + Math.floor(currentLevel * 1.5);
+                    takeDamage(damage);
+                    
+                    // Knockback effect - push player away from zombie
+                    const knockbackDir = new THREE.Vector3();
+                    knockbackDir.subVectors(player.position, zombie.mesh.position);
+                    knockbackDir.y = 0;
+                    knockbackDir.normalize();
+                    player.position.addScaledVector(knockbackDir, 1);
+                    
+                    // Remove zombie (it "attacked")
+                    scene.remove(zombie.mesh);
+                    zombies.splice(i, 1);
+                }
+            }
+        }
+        
+        function takeDamage(amount) {
+            health -= amount;
+            
+            // Play hurt sound
+            if (playerHurt.buffer) {
+                if (playerHurt.isPlaying) {
+                    playerHurt.stop();
+                }
+                playerHurt.play();
+            }
+            
+            // Screen red flash effect
+            const redFlash = document.createElement('div');
+            redFlash.style.position = 'absolute';
+            redFlash.style.top = 0;
+            redFlash.style.left = 0;
+            redFlash.style.width = '100%';
+            redFlash.style.height = '100%';
+            redFlash.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+            redFlash.style.pointerEvents = 'none';
+            redFlash.style.zIndex = '1000';
+            document.body.appendChild(redFlash);
+            
+            setTimeout(() => {
+                document.body.removeChild(redFlash);
+            }, 200);
+            
+            updateUI();
+            
+            if (health <= 0) {
+                gameOver();
+            }
+        }
+        
+        function updateUI() {
+            // Update health bar
+            healthFill.style.width = `${health}%`;
+            
+            // Update score display
+            scoreDisplay.textContent = `Score: ${score}`;
+            
+            // Update level indicator
+            levelIndicator.textContent = `LEVEL ${currentLevel}`;
+            
+            // Next level info
+            if (currentLevel < MAX_LEVEL) {
+                const nextLevelScore = LEVEL_THRESHOLDS[currentLevel + 1];
+                const remaining = nextLevelScore - score;
+                levelIndicator.textContent += ` (${remaining} pts to LVL ${currentLevel + 1})`;
+            } else {
+                levelIndicator.textContent += ' (MAX)';
+            }
+        }
+        
+        function showMessage(text, duration = 1500) {
+            messageFlash.textContent = text;
+            messageFlash.style.opacity = 1;
+            
+            setTimeout(() => {
+                messageFlash.style.opacity = 0;
+            }, duration);
+        }
+        
+        function gameOver() {
+            isGameRunning = false;
+            
+            // Exit pointer lock
+            if (document.pointerLockElement) {
+                document.exitPointerLock();
+            }
+            
+            // Update final score and survival time
+            finalScoreDisplay.textContent = score;
+            survivalTimeDisplay.textContent = gameTime;
+            
+            // Show game over screen
+            document.getElementById('gameOverScreen').style.display = 'flex';
+        }
+        
+        function restart() {
+            // Hide all screens
+            const screens = ['gameOverScreen', 'victoryScreen', 'pauseMenu'];
+            screens.forEach(id => {
+                const screen = document.getElementById(id);
+                if (screen) screen.style.display = 'none';
+            });
+            
+            // Clear game objects
+            bullets.forEach(bullet => scene.remove(bullet.mesh));
+            zombies.forEach(zombie => scene.remove(zombie.mesh));
+            
+            bullets = [];
+            zombies = [];
+            
+            // Reset player
+            player.position.set(0, 1.6, 0);
+            camera.rotation.set(0, 0, 0);
+            
+            // Reset game state
+            health = 100;
+            score = 0;
+            currentLevel = 1;
+            bossActive = false;
+            gameWon = false;
+            startTime = Date.now();
+            gameTime = 0;
+            
+            // Update UI
+            updateUI();
+            
+            // Start game
+            startGame();
+        }
+        
+        function pauseGame() {
+            if (isGameRunning) {
+                isGameRunning = false;
+                document.getElementById('pauseMenu').style.display = 'flex';
+                document.exitPointerLock();
+            }
+        }
+        
+        function resumeGame() {
+            document.getElementById('pauseMenu').style.display = 'none';
+            document.getElementById('gameCanvas').requestPointerLock();
+            isGameRunning = true;
+        }
+        
+        // Check if player should advance to next level
+        function checkLevelProgress() {
+            // Find the highest level that player's score qualifies for
+            let newLevel = 1;
+            for (let i = 1; i < LEVEL_THRESHOLDS.length; i++) {
+                if (score >= LEVEL_THRESHOLDS[i]) {
+                    newLevel = i;
+                } else {
+                    break;
+                }
+            }
+            
+            // If player has reached a new level
+            if (newLevel > currentLevel) {
+                const prevLevel = currentLevel;
+                currentLevel = newLevel;
+                
+                // Show level up notification
+                levelUpNotification.textContent = `LEVEL ${currentLevel} REACHED!`;
+                levelUpNotification.style.opacity = 1;
+                
+                setTimeout(() => {
+                    levelUpNotification.style.opacity = 0;
+                }, 3000);
+                
+                // Update UI
+                updateUI();
+                
+                // Clear all existing zombies and spawn new ones appropriate for the level
+                clearZombiesOnLevelUp();
+                
+                // Make existing zombies stronger - this is now only backup in case some zombies remain
+                upgradeExistingZombies(prevLevel, currentLevel);
+            }
+        }
+        
+        // New function to clear zombies on level up and spawn new ones
+        function clearZombiesOnLevelUp() {
+            // Remove all existing zombies with a despawn effect
+            for (let i = zombies.length - 1; i >= 0; i--) {
+                if (zombies[i] && zombies[i].mesh) {
+                    // Create despawn effect
+                    createDespawnEffect(zombies[i].mesh.position.clone(), zombies[i].color);
+                    
+                    // Remove zombie from scene
+                    scene.remove(zombies[i].mesh);
+                }
+            }
+            
+            // Clear zombies array
+            zombies = [];
+            
+            // Spawn new zombies for this level
+            const baseZombieCount = 3; // Base number of zombies to spawn
+            const levelBonus = Math.min(currentLevel - 1, 3); // Up to 3 extra zombies based on level
+            const zombiesToSpawn = baseZombieCount + levelBonus;
+            
+            // Spawn zombies with a delay between each
+            for (let i = 0; i < zombiesToSpawn; i++) {
+                setTimeout(() => {
+                    if (zombies.length < MAX_ZOMBIES && !bossActive) {
+                        spawnZombie();
+                    }
+                }, 300 * i); // 300ms delay between spawns
+            }
+            
+            // Show message
+            showMessage(`Level ${currentLevel} zombies incoming!`, 2000);
+        }
+        
+        // Create a despawn effect for zombies being removed
+        function createDespawnEffect(position, color) {
+            // Default color if not provided
+            color = color || 0x885555;
+            
+            // Create particles radiating outward
+            for (let i = 0; i < 8; i++) {
+                const particle = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2, 4, 4),
+                    new THREE.MeshBasicMaterial({
+                        color: color,
+                        transparent: true,
+                        opacity: 0.7
+                    })
+                );
+                
+                // Position at zombie position
+                particle.position.copy(position);
+                particle.position.y += 1; // Center of zombie
+                
+                // Calculate direction (evenly distributed around a circle)
+                const angle = (i / 8) * Math.PI * 2;
+                const direction = new THREE.Vector3(
+                    Math.cos(angle),
+                    0.5, // Slight upward movement
+                    Math.sin(angle)
+                );
+                
+                scene.add(particle);
+                
+                // Animate particle
+                let distance = 0;
+                const speed = 0.1;
+                const maxDistance = 3;
+                
+                const moveParticle = () => {
+                    if (distance >= maxDistance) {
+                        scene.remove(particle);
+                        return;
+                    }
+                    
+                    // Move particle
+                    particle.position.addScaledVector(direction, speed);
+                    
+                    // Fade out
+                    particle.material.opacity -= 0.02;
+                    
+                    distance += speed;
+                    requestAnimationFrame(moveParticle);
+                };
+                
+                moveParticle();
+            }
+        }
+        
+        // Modify spawnZombie() to add more variation
+        function spawnZombie() {
+            // Create zombie container
+            const zombie = new THREE.Group();
+            
+            // Calculate zombie scale based on level (gets bigger with higher levels)
+            const minScale = 1.0;
+            const maxScale = 2.0;
+            const levelProgress = Math.min(currentLevel, MAX_LEVEL) / MAX_LEVEL;
+            const zombieScale = minScale + (levelProgress * (maxScale - minScale));
+            
+            // Zombie health increases with level
+            const baseHealth = 100;
+            const healthMultiplier = 1 + (currentLevel * 0.2); // +20% health per level
+            const zombieHealth = Math.floor(baseHealth * healthMultiplier);
+            
+            // Zombie speed increases with level, but caps at level 6
+            const baseSpeed = 0.04;
+            const maxSpeedLevel = 6;
+            const effectiveLevel = Math.min(currentLevel, maxSpeedLevel);
+            const speedMultiplier = 1 + (effectiveLevel * 0.1); // +10% speed per level up to cap
+            
+            // Add some randomness to speed, more variation at higher levels
+            const speedVariation = 0.02 + (Math.min(currentLevel, 5) * 0.005);
+            const zombieSpeed = baseSpeed * speedMultiplier + (Math.random() * speedVariation - speedVariation/2);
+            
+            // Zombie color changes based on level
+            let zombieColor;
+            if (currentLevel <= 3) {
+                zombieColor = 0x558855; // Green for early levels
+            } else if (currentLevel <= 6) {
+                zombieColor = 0x885588; // Purple for mid levels
+            } else {
+                zombieColor = 0x885555; // Red tint for high levels
+            }
+            
+            // Special abilities for higher level zombies
+            let specialAbilities = {};
+            
+            if (currentLevel >= 3) {
+                // Level 3+: Chance for sudden speed burst
+                specialAbilities.speedBurst = {
+                    enabled: true,
+                    chance: 0.01, // 1% chance per frame check
+                    duration: 1000, // 1 second
+                    multiplier: 2.5, // Speed multiplier during burst
+                    active: false,
+                    lastBurst: 0,
+                    cooldown: 5000 // 5 seconds between bursts
+                };
+            }
+            
+            if (currentLevel >= 5) {
+                // Level 5+: Chance to take less damage
+                specialAbilities.toughSkin = {
+                    enabled: true,
+                    chance: 0.3, // 30% chance to take less damage
+                    damageReduction: 0.5 // 50% damage reduction
+                };
+            }
+            
+            if (currentLevel >= 7) {
+                // Level 7+: Chance to spawn a small zombie on death
+                specialAbilities.splitOnDeath = {
+                    enabled: true,
+                    chance: 0.4 // 40% chance to spawn smaller zombie on death
+                };
+            }
+            
+            // Zombie body color
+            const bodyMaterial = new THREE.MeshStandardMaterial({ 
+                color: zombieColor,
+                roughness: 0.8
+            });
+            
+            // Zombie body
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 1.2, 0.3),
+                bodyMaterial
+            );
+            body.position.y = 0.6;
+            zombie.add(body);
+            
+            // Zombie head
+            const head = new THREE.Mesh(
+                new THREE.BoxGeometry(0.4, 0.4, 0.4),
+                bodyMaterial
+            );
+            head.position.y = 1.4;
+            zombie.add(head);
+            
+            // Zombie arms
+            const leftArm = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.8, 0.2),
+                bodyMaterial
+            );
+            leftArm.position.set(-0.4, 0.8, 0);
+            zombie.add(leftArm);
+            
+            const rightArm = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.8, 0.2),
+                bodyMaterial
+            );
+            rightArm.position.set(0.4, 0.8, 0);
+            zombie.add(rightArm);
+            
+            // Zombie legs
+            const legMaterial = new THREE.MeshStandardMaterial({
+                color: zombieColor,
+                roughness: 0.8
+            });
+            
+            const leftLeg = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.8, 0.2),
+                legMaterial
+            );
+            leftLeg.position.set(-0.2, 0.1, 0);
+            zombie.add(leftLeg);
+            
+            const rightLeg = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.8, 0.2),
+                legMaterial
+            );
+            rightLeg.position.set(0.2, 0.1, 0);
+            zombie.add(rightLeg);
+            
+            // Zombie eyes (red glow)
+            const eyeGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+            const eyeMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xff0000,
+                emissive: 0xff0000,
+                emissiveIntensity: 1.0
+            });
+            
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-0.1, 1.4, 0.21);
+            zombie.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(0.1, 1.4, 0.21);
+            zombie.add(rightEye);
+            
+            // Apply scaling to zombie based on level
+            zombie.scale.set(zombieScale, zombieScale, zombieScale);
+            
+            // Position zombie at random location around player, with wider distribution at higher levels
+            const angle = Math.random() * Math.PI * 2;
+            
+            // Make spawning distance more variable based on level
+            const minDistance = 40;
+            const distanceVariation = 20 + (currentLevel * 2); // More variation at higher levels
+            const distanceFromPlayer = minDistance + Math.random() * distanceVariation;
+            
+            // Ensure zombies don't spawn in view direction at higher levels
+            // Get player's view direction
+            const playerDirection = new THREE.Vector3();
+            camera.getWorldDirection(playerDirection);
+            
+            // Normalize to the horizontal plane
+            playerDirection.y = 0;
+            playerDirection.normalize();
+            
+            // Calculate spawn position
+            let spawnX = player.position.x + Math.cos(angle) * distanceFromPlayer;
+            let spawnZ = player.position.z + Math.sin(angle) * distanceFromPlayer;
+            
+            // At higher levels, avoid spawning directly in front of player
+            if (currentLevel > 3) {
+                // Calculate dot product to determine if spawn position is in view direction
+                const spawnDirection = new THREE.Vector3(spawnX - player.position.x, 0, spawnZ - player.position.z).normalize();
+                const dotProduct = spawnDirection.dot(playerDirection);
+                
+                // If spawn is in view direction (dot product > 0.7), adjust the position
+                if (dotProduct > 0.7) {
+                    // Adjust angle by 90-180 degrees
+                    const adjustmentAngle = Math.PI * (0.5 + Math.random() * 0.5);
+                    angle += adjustmentAngle;
+                    
+                    // Recalculate spawn position
+                    spawnX = player.position.x + Math.cos(angle) * distanceFromPlayer;
+                    spawnZ = player.position.z + Math.sin(angle) * distanceFromPlayer;
+                }
+            }
+            
+            zombie.position.x = spawnX;
+            zombie.position.z = spawnZ;
+            zombie.position.y = 0;
+            
+            // Add to scene and zombies array
+            scene.add(zombie);
+            zombies.push({
+                mesh: zombie,
+                health: zombieHealth,
+                speed: zombieSpeed,
+                scale: zombieScale,
+                level: currentLevel,
+                color: zombieColor,
+                specialAbilities: specialAbilities,
+                spawnTime: performance.now() // Track when this zombie was spawned
+            });
+            
+            // Play zombie sound occasionally - higher pitched for higher levels
+            if (Math.random() < 0.3 && zombieGroan && zombieGroan.buffer) {
+                if (!zombieGroan.isPlaying) {
+                    zombieGroan.play();
+                    
+                    // Adjust pitch based on level
+                    if (zombieGroan.source && zombieGroan.source.playbackRate) {
+                        const basePitch = 1.0;
+                        const pitchIncrease = Math.min(currentLevel, 5) * 0.1; // Up to +50% pitch
+                        zombieGroan.source.playbackRate.value = basePitch + pitchIncrease;
+                    }
+                }
+            }
+        }
+        
+        // Add a new function to check for and resolve stuck zombies
+        function checkForStuckZombies(now) {
+            // Check for zombies that haven't moved much
+            const stuckCheckDistance = 0.5; // Distance threshold to consider a zombie stuck
+            const stuckCheckTime = 5000; // Time threshold (5 seconds) to consider a zombie stuck
+            
+            for (let i = zombies.length - 1; i >= 0; i--) {
+                const zombie = zombies[i];
+                
+                // Skip recently spawned zombies
+                if (!zombie.lastPosition || now - zombie.spawnTime < 2000) {
+                    // Initialize position tracking if not exists
+                    if (!zombie.lastPosition) {
+                        zombie.lastPosition = zombie.mesh.position.clone();
+                        zombie.lastMoveCheck = now;
+                    }
+                    continue;
+                }
+                
+                // Check how long since last position check
+                if (now - zombie.lastMoveCheck > 1000) { // Check every second
+                    // Calculate distance moved since last check
+                    const distMoved = zombie.mesh.position.distanceTo(zombie.lastPosition);
+                    
+                    // If zombie hasn't moved much in the last check period
+                    if (distMoved < stuckCheckDistance) {
+                        // Increment stuck counter or initialize it
+                        zombie.stuckCount = (zombie.stuckCount || 0) + 1;
+                        
+                        // If zombie has been stuck for too long (5 seconds)
+                        if (zombie.stuckCount >= 5) {
+                            // Teleport the zombie to a new position
+                            const angle = Math.random() * Math.PI * 2;
+                            const distanceFromPlayer = 40 + Math.random() * 20;
+                            
+                            zombie.mesh.position.x = player.position.x + Math.cos(angle) * distanceFromPlayer;
+                            zombie.mesh.position.z = player.position.z + Math.sin(angle) * distanceFromPlayer;
+                            
+                            // Reset stuck counter
+                            zombie.stuckCount = 0;
+                            
+                            // Add teleport effect
+                            const teleportEffect = new THREE.Mesh(
+                                new THREE.SphereGeometry(1, 8, 8),
+                                new THREE.MeshBasicMaterial({
+                                    color: 0x00ffff,
+                                    transparent: true,
+                                    opacity: 0.5
+                                })
+                            );
+                            teleportEffect.position.copy(zombie.mesh.position);
+                            teleportEffect.position.y += 1;
+                            scene.add(teleportEffect);
+                            
+                            // Fade out and remove
+                            setTimeout(() => {
+                                scene.remove(teleportEffect);
+                            }, 500);
+                        }
+                    } else {
+                        // Reset stuck counter if zombie is moving
+                        zombie.stuckCount = 0;
+                    }
+                    
+                    // Update last position and check time
+                    zombie.lastPosition.copy(zombie.mesh.position);
+                    zombie.lastMoveCheck = now;
+                }
+            }
+        }
+        
+        // Upgrade existing zombies when level increases
+        function upgradeExistingZombies(oldLevel, newLevel) {
+            // Calculate power increase factor
+            const powerIncrease = 1 + ((newLevel - oldLevel) * 0.1);
+            
+            for (let zombie of zombies) {
+                // Only upgrade health for existing zombies
+                zombie.health = Math.floor(zombie.health * powerIncrease);
+                
+                // Visual update - make the zombie glow to indicate it got stronger
+                zombie.mesh.children.forEach(part => {
+                    if (part.material && part.material.color) {
+                        // Store the original color
+                        const originalColor = part.material.color.clone();
+                        
+                        // Make it glow red briefly
+                        part.material.color.set(0xff0000);
+                        part.material.emissive = new THREE.Color(0xff0000);
+                        part.material.emissiveIntensity = 0.5;
+                        
+                        // Reset back to original color after a delay
+                        setTimeout(() => {
+                            part.material.color.copy(originalColor);
+                            part.material.emissive = new THREE.Color(0x000000);
+                            part.material.emissiveIntensity = 0;
+                        }, 1000);
+                    }
+                });
+            }
+        }
+        
+        // Create a smaller zombie when a large one splits
+        function createSplitZombie(x, z, scale) {
+            // Create zombie container
+            const zombie = new THREE.Group();
+            
+            // Use the same code as regular zombies but with fixed scale and stats
+            const zombieScale = scale;
+            const zombieHealth = 50 + (currentLevel * 10);
+            const zombieSpeed = 0.06 + (currentLevel * 0.01);
+            
+            // Red-orange color for split zombies
+            const zombieColor = 0xff7755;
+            
+            const bodyMaterial = new THREE.MeshStandardMaterial({ 
+                color: zombieColor,
+                roughness: 0.8,
+                emissive: 0xff4400,
+                emissiveIntensity: 0.2
+            });
+            
+            // Create body parts similar to regular zombies but smaller
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 1.2, 0.3),
+                bodyMaterial
+            );
+            body.position.y = 0.6;
+            zombie.add(body);
+            
+            const head = new THREE.Mesh(
+                new THREE.BoxGeometry(0.4, 0.4, 0.4),
+                bodyMaterial
+            );
+            head.position.y = 1.4;
+            zombie.add(head);
+            
+            // Arms and legs
+            const limbs = [
+                { pos: [-0.4, 0.8, 0], size: [0.2, 0.8, 0.2] }, // left arm
+                { pos: [0.4, 0.8, 0], size: [0.2, 0.8, 0.2] },  // right arm
+                { pos: [-0.2, 0.1, 0], size: [0.2, 0.8, 0.2] }, // left leg
+                { pos: [0.2, 0.1, 0], size: [0.2, 0.8, 0.2] }   // right leg
+            ];
+            
+            limbs.forEach(limb => {
+                const mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(...limb.size),
+                    bodyMaterial
+                );
+                mesh.position.set(...limb.pos);
+                zombie.add(mesh);
+            });
+            
+            // Glowing eyes
+            const eyeGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+            const eyeMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xff0000,
+                emissive: 0xff0000,
+                emissiveIntensity: 1.0
+            });
+            
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-0.1, 1.4, 0.21);
+            zombie.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(0.1, 1.4, 0.21);
+            zombie.add(rightEye);
+            
+            // Apply scaling
+            zombie.scale.set(zombieScale, zombieScale, zombieScale);
+            
+            // Position at the death location of the parent zombie
+            zombie.position.set(x, 0, z);
+            
+            // Add a glowing effect to show this is a special zombie
+            const glow = new THREE.PointLight(0xff6600, 0.7, 3);
+            zombie.add(glow);
+            
+            // Add to scene and zombies array
+            scene.add(zombie);
+            zombies.push({
+                mesh: zombie,
+                health: zombieHealth,
+                speed: zombieSpeed,
+                scale: zombieScale,
+                level: currentLevel,
+                color: zombieColor,
+                isBoss: false,
+                specialAbilities: {} // No special abilities for split zombies
+            });
+        }
+        
+        // New function to spawn the boss zombie
+        function spawnBossZombie() {
+            // Create boss zombie container
+            const zombie = new THREE.Group();
+            
+            // Boss is much larger than regular zombies
+            const zombieScale = 4.0;
+            
+            // Boss has much higher health
+            const zombieHealth = 1000;
+            
+            // Boss is slower but still threatening
+            const zombieSpeed = 0.12; // Increased speed for high-speed boss
+            
+            // Boss has a unique color - dark red with glowing effect
+            const zombieColor = 0x990000;
+            
+            // Create boss body - larger and more detailed
+            const bodyMaterial = new THREE.MeshStandardMaterial({ 
+                color: zombieColor,
+                roughness: 0.7,
+                metalness: 0.3,
+                emissive: 0x330000,
+                emissiveIntensity: 0.3
+            });
+            
+            // Main body
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.8, 1.5, 0.4),
+                bodyMaterial
+            );
+            body.position.y = 0.8;
+            zombie.add(body);
+            
+            // Larger head
+            const head = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 0.6, 0.6),
+                bodyMaterial
+            );
+            head.position.y = 1.8;
+            zombie.add(head);
+            
+            // Add spikes to the head
+            const spikeGeometry = new THREE.ConeGeometry(0.1, 0.3, 4);
+            const spikeMaterial = new THREE.MeshStandardMaterial({
+                color: 0xcc0000,
+                roughness: 0.5,
+                metalness: 0.5
+            });
+            
+            // Add multiple spikes on the head
+            const spikePositions = [
+                {x: 0, y: 0.3, z: 0},
+                {x: -0.2, y: 0.2, z: 0.2},
+                {x: 0.2, y: 0.2, z: -0.2},
+                {x: -0.2, y: 0.2, z: -0.2},
+                {x: 0.2, y: 0.2, z: 0.2}
+            ];
+            
+            spikePositions.forEach(pos => {
+                const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
+                spike.position.set(pos.x, pos.y, pos.z);
+                head.add(spike);
+            });
+            
+            // Muscular arms
+            const leftArm = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 1.0, 0.3),
+                bodyMaterial
+            );
+            leftArm.position.set(-0.6, 0.8, 0);
+            zombie.add(leftArm);
+            
+            const rightArm = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 1.0, 0.3),
+                bodyMaterial
+            );
+            rightArm.position.set(0.6, 0.8, 0);
+            zombie.add(rightArm);
+            
+            // Thick legs
+            const leftLeg = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 1.0, 0.3),
+                bodyMaterial
+            );
+            leftLeg.position.set(-0.3, -0.1, 0);
+            zombie.add(leftLeg);
+            
+            const rightLeg = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 1.0, 0.3),
+                bodyMaterial
+            );
+            rightLeg.position.set(0.3, -0.1, 0);
+            zombie.add(rightLeg);
+            
+            // Glowing red eyes
+            const eyeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+            const eyeMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xff0000,
+                emissive: 0xff0000,
+                emissiveIntensity: 1.0
+            });
+            
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-0.2, 1.8, 0.31);
+            zombie.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(0.2, 1.8, 0.31);
+            zombie.add(rightEye);
+            
+            // Add a constant glow around the boss
+            const bossLight = new THREE.PointLight(0xff0000, 1, 10);
+            bossLight.position.set(0, 1, 0);
+            zombie.add(bossLight);
+            
+            // Scale up the boss
+            zombie.scale.set(zombieScale, zombieScale, zombieScale);
+            
+            // Position the boss further away for dramatic effect
+            const angle = Math.random() * Math.PI * 2;
+            const distanceFromPlayer = 60; // Further away than regular zombies
+            
+            zombie.position.x = player.position.x + Math.cos(angle) * distanceFromPlayer;
+            zombie.position.z = player.position.z + Math.sin(angle) * distanceFromPlayer;
+            zombie.position.y = 0;
+            
+            // Add to scene and zombies array with special boss flag
+            scene.add(zombie);
+            zombies.push({
+                mesh: zombie,
+                health: zombieHealth,
+                speed: zombieSpeed,
+                scale: zombieScale,
+                level: currentLevel,
+                color: zombieColor,
+                isBoss: true,
+                specialAbilities: {
+                    toughSkin: {
+                        enabled: true,
+                        chance: 0.5,
+                        damageReduction: 0.7
+                    },
+                    speedBurst: {
+                        enabled: true,
+                        chance: 0.005,
+                        duration: 2000,
+                        multiplier: 3,
+                        active: false,
+                        lastBurst: 0,
+                        cooldown: 10000
+                    }
+                }
+            });
+            
+            // Show a dramatic message
+            showBossMessage("FINAL BOSS HAS APPEARED!", 5000);
+            
+            // Play dramatic sound if available
+            if (zombieGroan.buffer) {
+                // Play at lower pitch for dramatic effect
+                if (zombieGroan.source && zombieGroan.source.playbackRate) {
+                    zombieGroan.source.playbackRate.value = 0.5;
+                }
+                zombieGroan.play();
+            }
+        }
+        
+        // Add a function to show a boss message
+        function showBossMessage(text, duration = 3000) {
+            // Create a special boss message element if it doesn't exist
+            let bossMessage = document.getElementById('bossMessage');
+            if (!bossMessage) {
+                bossMessage = document.createElement('div');
+                bossMessage.id = 'bossMessage';
+                bossMessage.style.position = 'absolute';
+                bossMessage.style.top = '40%';
+                bossMessage.style.left = '50%';
+                bossMessage.style.transform = 'translate(-50%, -50%)';
+                bossMessage.style.color = '#ff0000';
+                bossMessage.style.fontSize = '42px';
+                bossMessage.style.fontWeight = 'bold';
+                bossMessage.style.textShadow = '0 0 20px #ff0000';
+                bossMessage.style.textAlign = 'center';
+                bossMessage.style.zIndex = '1000';
+                bossMessage.style.background = 'rgba(0,0,0,0.7)';
+                bossMessage.style.padding = '20px 40px';
+                bossMessage.style.borderRadius = '10px';
+                bossMessage.style.border = '3px solid #ff0000';
+                bossMessage.style.transition = 'opacity 0.5s';
+                document.body.appendChild(bossMessage);
+            }
+            
+            bossMessage.textContent = text;
+            bossMessage.style.opacity = '1';
+            
+            setTimeout(() => {
+                bossMessage.style.opacity = '0';
+            }, duration);
+        }
+        
+        // Victory sequence when the boss is defeated
+        function victorySequence(bossPosition) {
+            // Set game won flag
+            gameWon = true;
+            
+            // Show victory message
+            showBossMessage("YOU DEFEATED THE BOSS! YOU WIN!", 10000);
+            
+            // Create explosion effect at boss position
+            for (let i = 0; i < 30; i++) {
+                createExplosionParticle(bossPosition);
+            }
+            
+            // Create light flash
+            const flash = new THREE.PointLight(0xffff00, 3, 50);
+            flash.position.copy(bossPosition);
+            scene.add(flash);
+            
+            // Remove the boss zombie after a delay
+            setTimeout(() => {
+                // Remove boss from the zombies array
+                for (let i = zombies.length - 1; i >= 0; i--) {
+                    if (zombies[i].isBoss) {
+                        scene.remove(zombies[i].mesh);
+                        zombies.splice(i, 1);
+                    }
+                }
+                
+                // Remove the light
+                scene.remove(flash);
+                
+                // Show victory screen
+                showVictoryScreen();
+            }, 3000);
+        }
+        
+        // Create explosion particles
+        function createExplosionParticle(position) {
+            const colors = [0xff0000, 0xff6600, 0xffff00, 0xffffff];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2 + Math.random() * 0.3, 4, 4), // Reduced geometry complexity
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.8
+                })
+            );
+            
+            // Random position around the explosion center
+            particle.position.copy(position);
+            particle.position.x += (Math.random() - 0.5) * 8;
+            particle.position.y += (Math.random() - 0.5) * 8 + 4;
+            particle.position.z += (Math.random() - 0.5) * 8;
+            
+            // Add random velocity
+            const velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.2,
+                Math.random() * 0.2,
+                (Math.random() - 0.5) * 0.2
+            );
+            
+            // Add lights to fewer particles
+            if (Math.random() > 0.9) { // Reduced from 0.7
+                const light = new THREE.PointLight(color, 0.5, 5);
+                particle.add(light);
+            }
+            
+            scene.add(particle);
+            
+            // Animate and remove after a timeout - simplified animation
+            let aliveTime = 0;
+            const lifetime = 800 + Math.random() * 1200; // Reduced from 1000-3000
+            const updateInterval = 33.3; // 30fps instead of 60fps
+            
+            const animateParticle = () => {
+                if (aliveTime > lifetime) {
+                    scene.remove(particle);
+                    return;
+                }
+                
+                // Move particle
+                particle.position.add(velocity);
+                
+                // Gravity effect
+                velocity.y -= 0.001;
+                
+                // Fade out
+                if (particle.material.opacity > 0) {
+                    particle.material.opacity -= 0.02; // Faster fade
+                }
+                
+                aliveTime += updateInterval;
+                setTimeout(animateParticle, updateInterval);
+            };
+            
+            animateParticle();
+        }
+        
+        // Show victory screen
+        function showVictoryScreen() {
+            // Create victory screen if it doesn't exist
+            let victoryScreen = document.getElementById('victoryScreen');
+            
+            if (!victoryScreen) {
+                victoryScreen = document.createElement('div');
+                victoryScreen.id = 'victoryScreen';
+                victoryScreen.style.position = 'absolute';
+                victoryScreen.style.top = '0';
+                victoryScreen.style.left = '0';
+                victoryScreen.style.width = '100%';
+                victoryScreen.style.height = '100%';
+                victoryScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                victoryScreen.style.display = 'flex';
+                victoryScreen.style.alignItems = 'center';
+                victoryScreen.style.justifyContent = 'center';
+                victoryScreen.style.zIndex = '1000';
+                
+                const content = document.createElement('div');
+                content.style.background = 'rgba(30, 30, 30, 0.95)';
+                content.style.padding = '40px';
+                content.style.borderRadius = '15px';
+                content.style.border = '2px solid #ffcc00';
+                content.style.boxShadow = '0 0 30px rgba(255, 204, 0, 0.5)';
+                content.style.color = 'white';
+                content.style.textAlign = 'center';
+                content.style.maxWidth = '600px';
+                
+                const title = document.createElement('h1');
+                title.textContent = 'VICTORY!';
+                title.style.fontSize = '50px';
+                title.style.marginBottom = '20px';
+                title.style.color = '#ffcc00';
+                title.style.textShadow = '0 0 10px rgba(255, 204, 0, 0.5)';
+                
+                const message = document.createElement('p');
+                message.textContent = 'You have defeated the final boss and saved the world from the zombie apocalypse!';
+                message.style.fontSize = '18px';
+                message.style.marginBottom = '20px';
+                
+                const stats = document.createElement('div');
+                stats.innerHTML = `
+                    <p>Final Score: <span id="victoryScore">${score}</span></p>
+                    <p>Survival Time: <span id="victoryTime">${gameTime}</span> seconds</p>
+                    <p>Highest Level Reached: <span id="victoryLevel">${currentLevel}</span></p>
+                `;
+                stats.style.margin = '20px 0';
+                stats.style.padding = '15px';
+                stats.style.background = 'rgba(0, 0, 0, 0.3)';
+                stats.style.borderRadius = '10px';
+                
+                const restartButton = document.createElement('button');
+                restartButton.textContent = 'PLAY AGAIN';
+                restartButton.style.background = 'linear-gradient(to bottom, #ffcc00, #ff9900)';
+                restartButton.style.color = 'white';
+                restartButton.style.border = 'none';
+                restartButton.style.padding = '15px 30px';
+                restartButton.style.fontSize = '22px';
+                restartButton.style.borderRadius = '10px';
+                restartButton.style.cursor = 'pointer';
+                restartButton.style.marginTop = '20px';
+                restartButton.style.fontWeight = 'bold';
+                restartButton.style.transition = 'all 0.2s';
+                restartButton.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.3)';
+                
+                restartButton.addEventListener('mouseover', function() {
+                    this.style.background = 'linear-gradient(to bottom, #ffdd33, #ffaa33)';
+                    this.style.transform = 'translateY(-2px)';
+                });
+                
+                restartButton.addEventListener('mouseout', function() {
+                    this.style.background = 'linear-gradient(to bottom, #ffcc00, #ff9900)';
+                    this.style.transform = 'translateY(0)';
+                });
+                
+                restartButton.addEventListener('click', function() {
+                    // Reset game and start over
+                    document.body.removeChild(victoryScreen);
+                    restart();
+                });
+                
+                content.appendChild(title);
+                content.appendChild(message);
+                content.appendChild(stats);
+                content.appendChild(restartButton);
+                
+                victoryScreen.appendChild(content);
+                document.body.appendChild(victoryScreen);
+            } else {
+                // Update stats if screen already exists
+                document.getElementById('victoryScore').textContent = score;
+                document.getElementById('victoryTime').textContent = gameTime;
+                document.getElementById('victoryLevel').textContent = currentLevel;
+                victoryScreen.style.display = 'flex';
+            }
+            
+            // Exit pointer lock
+            if (document.pointerLockElement) {
+                document.exitPointerLock();
+            }
+            
+            // Stop the game
+            isGameRunning = false;
+        }
+        
+        // Add a function to check for and resolve zombie stacking
+        function checkZombieStacking() {
+            if (zombies.length <= 1) return; // No need to check if only one zombie
+            
+            const stackingDistance = 1.0; // Threshold distance to consider zombies as stacked
+            const spreadForce = 0.2; // Force to apply to separate zombies
+            
+            // Compare each zombie with all others
+            for (let i = 0; i < zombies.length; i++) {
+                const zombieA = zombies[i];
+                if (!zombieA || !zombieA.mesh) continue;
+                
+                for (let j = i + 1; j < zombies.length; j++) {
+                    const zombieB = zombies[j];
+                    if (!zombieB || !zombieB.mesh) continue;
+                    
+                    // Calculate distance between zombies (horizontal only)
+                    const posA = zombieA.mesh.position;
+                    const posB = zombieB.mesh.position;
+                    
+                    // Skip distance check for far away zombies
+                    if (Math.abs(posA.x - posB.x) > 5 || Math.abs(posA.z - posB.z) > 5) continue;
+                    
+                    const dx = posB.x - posA.x;
+                    const dz = posB.z - posA.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    
+                    // If zombies are too close (stacked)
+                    if (distance < stackingDistance) {
+                        // Calculate normalized direction vector between zombies
+                        const dirX = dx / distance || (Math.random() * 2 - 1); // Random if distance is 0
+                        const dirZ = dz / distance || (Math.random() * 2 - 1); // Random if distance is 0
+                        
+                        // Push zombies apart based on their sizes (larger zombies push smaller ones more)
+                        const sizeRatioA = zombieB.scale / (zombieA.scale + zombieB.scale);
+                        const sizeRatioB = zombieA.scale / (zombieA.scale + zombieB.scale);
+                        
+                        // Apply forces to move zombies apart
+                        zombieA.mesh.position.x -= dirX * spreadForce * sizeRatioA;
+                        zombieA.mesh.position.z -= dirZ * spreadForce * sizeRatioA;
+                        
+                        zombieB.mesh.position.x += dirX * spreadForce * sizeRatioB;
+                        zombieB.mesh.position.z += dirZ * spreadForce * sizeRatioB;
+                        
+                        // Add slight random movement to help break symmetrical stacking
+                        zombieA.mesh.position.x += (Math.random() - 0.5) * 0.1;
+                        zombieA.mesh.position.z += (Math.random() - 0.5) * 0.1;
+                        zombieB.mesh.position.x += (Math.random() - 0.5) * 0.1;
+                        zombieB.mesh.position.z += (Math.random() - 0.5) * 0.1;
+                    }
+                }
+            }
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', init);
+        
+        // Add event listener for top-right RESTART button
+        document.addEventListener('DOMContentLoaded', function() {
+            var restartTopBtn = document.getElementById('restartTopButton');
+            if (restartTopBtn) {
+                restartTopBtn.onclick = restart;
+            }
+        });
+    </script>
+</body>
+</html> 
